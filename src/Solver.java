@@ -1,6 +1,5 @@
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -110,17 +109,39 @@ public class Solver {
 		return path;
 	}
 
-	private int nearestCity(int city, Set<Integer> unvisited) {
-		double min_dist = Double.POSITIVE_INFINITY;
-		int min_city = city;
-		for (int other_city : unvisited) {
-			double dist = cityDist(city, other_city);
-			if (dist <= min_dist) {
-				min_dist = dist;
-				min_city = other_city;
-			}
+	public List<Integer> findSimulatedAnnealingPath() {
+		List<Integer> path = findRandomPath();
+		double curr_dist = pathDist(path);
+		int path_len = path.size();
+		for (int epoch = 0; epoch < path_len; epoch++) {
+			double temp = epoch / path_len;
+			int fst_idx = (int) (Math.random() * (path_len - 2)) + 1;
+			int snd_idx = (int) (Math.random() * (path_len - 2)) + 1;
+			curr_dist = maybe_swap(path, curr_dist, fst_idx, snd_idx, temp);
 		}
-		return min_city;
+		return path;
+	}
+
+	private double maybe_swap(List<Integer> path, double curr_dist, int fst, int snd, double temp) {
+		double dist_to_fst = cityDist(path.get(fst - 1), path.get(fst));
+		double dist_from_fst = cityDist(path.get(fst), path.get(fst + 1));
+		double dist_to_snd = cityDist(path.get(snd - 1), path.get(snd));
+		double dist_from_snd = cityDist(path.get(snd), path.get(snd + 1));
+		double new_dist = curr_dist - (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
+		dist_to_fst = cityDist(path.get(snd - 1), path.get(snd));
+		dist_from_fst = cityDist(path.get(snd), path.get(snd + 1));
+		dist_to_snd = cityDist(path.get(fst - 1), path.get(fst));
+		dist_from_snd = cityDist(path.get(fst), path.get(fst + 1));
+		new_dist += (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
+		double random = Math.random();
+		double treshold = Math.exp(-(new_dist - curr_dist) / temp);
+		if (new_dist < curr_dist || random > treshold) {
+			int x = path.get(fst);
+			path.set(fst, path.get(snd));
+			path.set(snd, x);
+			curr_dist = new_dist;
+		}
+		return curr_dist;
 	}
 
 	public List<Double> read_csv(String location) {
@@ -153,9 +174,9 @@ public class Solver {
 
 	public static void main(String[] args) {
 		Solver s = new Solver();
-		List<Integer> p = s.findGreedyPath();
+		List<Integer> p = s.findSimulatedAnnealingPath();
 		System.out.println(s.pathDist(p));
-		s.savePath(p, "greedy.csv");
+		s.savePath(p, "sim_ann.csv");
 	}
 
 }
