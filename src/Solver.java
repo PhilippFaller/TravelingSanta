@@ -42,9 +42,6 @@ public class Solver {
 			if (n % p == 0) {
 				return false;
 			}
-			if (p > Math.sqrt(n)) {
-				break;
-			}
 		}
 		return true;
 	}
@@ -69,6 +66,7 @@ public class Solver {
 		for (int i = 1; i < path.size(); i++) {
 			int next_city = it.next();
 			dist += cityDist(curr_city, next_city, i);
+			curr_city = next_city;
 		}
 		return dist;
 	}
@@ -115,6 +113,9 @@ public class Solver {
 		int path_len = path.size();
 		for (int epoch = 0; epoch < path_len; epoch++) {
 			double temp = epoch / path_len;
+//			for (int i = 2; i < path_len-1; i++) {
+//				curr_dist = maybe_swap(path, curr_dist, i-1, i, temp);
+//			}
 			int fst_idx = (int) (Math.random() * (path_len - 2)) + 1;
 			int snd_idx = (int) (Math.random() * (path_len - 2)) + 1;
 			curr_dist = maybe_swap(path, curr_dist, fst_idx, snd_idx, temp);
@@ -132,7 +133,7 @@ public class Solver {
 		dist_from_fst = cityDist(path.get(snd), path.get(snd + 1));
 		dist_to_snd = cityDist(path.get(fst - 1), path.get(fst));
 		dist_from_snd = cityDist(path.get(fst), path.get(fst + 1));
-		new_dist += (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
+		new_dist += (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd); // TODO Calc prime bonus
 		double random = Math.random();
 		double treshold = Math.exp(-(new_dist - curr_dist) / temp);
 		if (new_dist < curr_dist || random > treshold) {
@@ -174,9 +175,12 @@ public class Solver {
 
 	public static void main(String[] args) {
 		Solver s = new Solver();
-		List<Integer> p = s.findSimulatedAnnealingPath();
-		System.out.println(s.pathDist(p));
-		s.savePath(p, "sim_ann.csv");
+		long t0 = System.currentTimeMillis();
+		List<Integer> p = s.findGreedyPath();
+		long t1 = System.currentTimeMillis();
+		System.out.println("Distance: " + s.pathDist(p));
+		System.out.println("Time: " + (t1-t0)/1000);
+		s.savePath(p, "greedy.csv");
 	}
 
 }
