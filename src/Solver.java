@@ -35,7 +35,7 @@ public class Solver {
 				}
 			}
 			this.primes = new HashSet<>();
-			for(int p : primes) {
+			for (int p : primes) {
 				this.primes.add(p);
 			}
 		}
@@ -127,31 +127,56 @@ public class Solver {
 			// }
 			int fst_idx = (int) (Math.random() * (path_len - 2)) + 1;
 			int snd_idx = (int) (Math.random() * (path_len - 2)) + 1;
-			curr_dist = maybe_swap(path, curr_dist, fst_idx, snd_idx, temp);
+			curr_dist = maybe_swap(path, curr_dist, Math.min(fst_idx, snd_idx), Math.max(fst_idx, snd_idx), temp);
 		}
 		return path;
 	}
 
 	private double maybe_swap(List<Integer> path, double curr_dist, int fst, int snd, double temp) {
-		double dist_to_fst = cityDist(path.get(fst - 1), path.get(fst));
-		double dist_from_fst = cityDist(path.get(fst), path.get(fst + 1));
-		double dist_to_snd = cityDist(path.get(snd - 1), path.get(snd));
-		double dist_from_snd = cityDist(path.get(snd), path.get(snd + 1));
-		double new_dist = curr_dist - (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
-		dist_to_fst = cityDist(path.get(fst - 1), path.get(snd));
-		dist_from_fst = cityDist(path.get(snd), path.get(fst + 1));
-		dist_to_snd = cityDist(path.get(snd - 1), path.get(fst));
-		dist_from_snd = cityDist(path.get(fst), path.get(snd + 1));
-		new_dist += (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd); // TODO Calc prime bonus
+		double new_dist = calcDistAfterSwap(path, curr_dist, fst, snd);
 		double random = Math.random();
 		double treshold = Math.exp(-(curr_dist - new_dist) / (curr_dist * temp));
-		if (new_dist < curr_dist || random < treshold) {
+		if (new_dist < curr_dist) {
 			int x = path.get(fst);
 			path.set(fst, path.get(snd));
 			path.set(snd, x);
+			double pd = pathDist(path);
+			if (new_dist != pd) {
+				System.out.println(fst + " " + snd);
+				System.out.println(pd + " " + new_dist);
+			}
 			curr_dist = new_dist;
 		}
 		return curr_dist;
+	}
+
+	private double calcDistAfterSwap(List<Integer> path, double curr_dist, int fst, int snd) {
+		if (fst == snd) {
+			return curr_dist;
+		}
+		if ((snd - fst) == 1) {
+			double dist_to_fst = cityDist(path.get(fst - 1), path.get(fst), fst);
+			double dist_between = cityDist(path.get(fst), path.get(snd), snd);
+			double dist_from_snd = cityDist(path.get(snd), path.get(snd - 1), snd + 1);
+			double new_dist = curr_dist - (dist_to_fst + dist_between + dist_from_snd);
+			dist_to_fst = cityDist(path.get(fst - 1), path.get(snd), fst);
+			dist_between = cityDist(path.get(snd), path.get(fst), snd);
+			dist_from_snd = cityDist(path.get(fst), path.get(snd + 1), snd + 1);
+			new_dist += dist_to_fst + dist_between + dist_from_snd;
+			return new_dist;
+		} else {
+			double dist_to_fst = cityDist(path.get(fst - 1), path.get(fst), fst);
+			double dist_from_fst = cityDist(path.get(fst), path.get(fst + 1), fst + 1);
+			double dist_to_snd = cityDist(path.get(snd - 1), path.get(snd), snd);
+			double dist_from_snd = cityDist(path.get(snd), path.get(snd + 1), snd + 1);
+			double new_dist = curr_dist - (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
+			dist_to_fst = cityDist(path.get(fst - 1), path.get(snd), fst);
+			dist_from_fst = cityDist(path.get(snd), path.get(fst + 1), fst + 1);
+			dist_to_snd = cityDist(path.get(snd - 1), path.get(fst), snd);
+			dist_from_snd = cityDist(path.get(fst), path.get(snd + 1), snd + 1);
+			new_dist += (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
+			return new_dist;
+		}
 	}
 
 	public List<Double> read_csv(String location) {
