@@ -119,7 +119,7 @@ public class Solver {
 		List<Integer> path = findGreedyPath();
 		double curr_dist = pathDist(path);
 		int path_len = path.size();
-		int iterations = path_len * 2;
+		int iterations = path_len*path_len;
 		for (int epoch = 0; epoch < iterations; epoch++) {
 			double temp = (iterations - epoch) / (double) iterations;
 			// for (int i = 2; i < path_len-1; i++) {
@@ -135,16 +135,11 @@ public class Solver {
 	private double maybe_swap(List<Integer> path, double curr_dist, int fst, int snd, double temp) {
 		double new_dist = calcDistAfterSwap(path, curr_dist, fst, snd);
 		double random = Math.random();
-		double treshold = Math.exp(-(curr_dist - new_dist) / (curr_dist * temp));
-		if (new_dist < curr_dist) {
+		double treshold = Math.exp(-1 / temp);
+		if (new_dist < curr_dist || random < treshold) {
 			int x = path.get(fst);
 			path.set(fst, path.get(snd));
 			path.set(snd, x);
-			double pd = pathDist(path);
-			if (new_dist != pd) {
-				System.out.println(fst + " " + snd);
-				System.out.println(pd + " " + new_dist);
-			}
 			curr_dist = new_dist;
 		}
 		return curr_dist;
