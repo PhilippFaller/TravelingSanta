@@ -73,10 +73,12 @@ public class Solver {
 
 	public List<Integer> findRandomPath() {
 		List<Integer> path = new ArrayList<Integer>();
-		for (int i = 0; i < cities.size(); i++) {
+		for (int i = 1; i < cities.size(); i++) {
 			path.add(i);
 		}
 		Collections.shuffle(path);
+		path.add(0, 0);
+		path.add(0);
 		return path;
 	}
 
@@ -89,7 +91,7 @@ public class Solver {
 				e.printStackTrace();
 			}
 		}
-		List<Integer> path = new LinkedList<>();
+		List<Integer> path = new ArrayList<>();
 		path.add(0);
 		double[] curr_city = { cities.getX(0), cities.getY(0) };
 		while (unvisited_cities.size() != 0) {
@@ -108,14 +110,15 @@ public class Solver {
 	}
 
 	public List<Integer> findSimulatedAnnealingPath() {
-		List<Integer> path = findRandomPath();
+		List<Integer> path = findGreedyPath();
 		double curr_dist = pathDist(path);
 		int path_len = path.size();
-		for (int epoch = 0; epoch < path_len; epoch++) {
-			double temp = epoch / path_len;
-//			for (int i = 2; i < path_len-1; i++) {
-//				curr_dist = maybe_swap(path, curr_dist, i-1, i, temp);
-//			}
+		int iterations = path_len * 2;
+		for (int epoch = 0; epoch < iterations; epoch++) {
+			double temp = (iterations - epoch) / (double) iterations;
+			// for (int i = 2; i < path_len-1; i++) {
+			// curr_dist = maybe_swap(path, curr_dist, i-1, i, temp);
+			// }
 			int fst_idx = (int) (Math.random() * (path_len - 2)) + 1;
 			int snd_idx = (int) (Math.random() * (path_len - 2)) + 1;
 			curr_dist = maybe_swap(path, curr_dist, fst_idx, snd_idx, temp);
@@ -129,14 +132,14 @@ public class Solver {
 		double dist_to_snd = cityDist(path.get(snd - 1), path.get(snd));
 		double dist_from_snd = cityDist(path.get(snd), path.get(snd + 1));
 		double new_dist = curr_dist - (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
-		dist_to_fst = cityDist(path.get(snd - 1), path.get(snd));
-		dist_from_fst = cityDist(path.get(snd), path.get(snd + 1));
-		dist_to_snd = cityDist(path.get(fst - 1), path.get(fst));
-		dist_from_snd = cityDist(path.get(fst), path.get(fst + 1));
+		dist_to_fst = cityDist(path.get(fst - 1), path.get(snd));
+		dist_from_fst = cityDist(path.get(snd), path.get(fst + 1));
+		dist_to_snd = cityDist(path.get(snd - 1), path.get(fst));
+		dist_from_snd = cityDist(path.get(fst), path.get(snd + 1));
 		new_dist += (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd); // TODO Calc prime bonus
 		double random = Math.random();
-		double treshold = Math.exp(-(new_dist - curr_dist) / temp);
-		if (new_dist < curr_dist || random > treshold) {
+		double treshold = Math.exp(-(curr_dist - new_dist) / (curr_dist * temp));
+		if (new_dist < curr_dist || random < treshold) {
 			int x = path.get(fst);
 			path.set(fst, path.get(snd));
 			path.set(snd, x);
@@ -176,11 +179,11 @@ public class Solver {
 	public static void main(String[] args) {
 		Solver s = new Solver();
 		long t0 = System.currentTimeMillis();
-		List<Integer> p = s.findGreedyPath();
+		List<Integer> p = s.findSimulatedAnnealingPath();
 		long t1 = System.currentTimeMillis();
 		System.out.println("Distance: " + s.pathDist(p));
-		System.out.println("Time: " + (t1-t0)/1000);
-		s.savePath(p, "greedy.csv");
+		System.out.println("Time: " + (t1 - t0) / 1000);
+		s.savePath(p, "sim_anneal.csv");
 	}
 
 }
