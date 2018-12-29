@@ -27,20 +27,26 @@ public class Solver {
 
 	private void initPrimes(int max_number) {
 		if (primes == null) {
-			primes = new HashSet<>();
+			List<Integer> primes = new LinkedList<>();
 			primes.add(2);
 			for (int i = 3; i <= max_number; i += 2) {
-				if (notDivisableByPrime(i)) {
+				if (notDivisableBy(primes, i)) {
 					primes.add(i);
 				}
+			}
+			this.primes = new HashSet<>();
+			for(int p : primes) {
+				this.primes.add(p);
 			}
 		}
 	}
 
-	private boolean notDivisableByPrime(int n) {
-		for (int p : primes) {
-			if (n % p == 0) {
+	private boolean notDivisableBy(List<Integer> divisors, int n) {
+		for (int d : divisors) {
+			if (n % d == 0) {
 				return false;
+			} else if (d >= Math.sqrt(n)) {
+				break;
 			}
 		}
 		return true;
@@ -177,8 +183,8 @@ public class Solver {
 	}
 
 	public static void main(String[] args) {
-		Solver s = new Solver();
 		long t0 = System.currentTimeMillis();
+		Solver s = new Solver();
 		List<Integer> p = s.findSimulatedAnnealingPath();
 		long t1 = System.currentTimeMillis();
 		System.out.println("Distance: " + s.pathDist(p));
