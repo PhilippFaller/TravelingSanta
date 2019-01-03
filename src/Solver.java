@@ -115,19 +115,23 @@ public class Solver {
 		return path;
 	}
 
-	public List<Integer> findSimulatedAnnealingPath() {
+	public List<Integer> findSimulatedAnnealingPath(double alpha) {
 		List<Integer> path = findGreedyPath();
+//		List<Integer> path = findRandomPath();
 		double curr_dist = pathDist(path);
 		int path_len = path.size();
-		int iterations = path_len*path_len;
+		int iterations = 10000; // Should be at least path_length. Not fast enough for that.
+		double temp = 1;
 		for (int epoch = 0; epoch < iterations; epoch++) {
-			double temp = (iterations - epoch) / (double) iterations;
-			// for (int i = 2; i < path_len-1; i++) {
-			// curr_dist = maybe_swap(path, curr_dist, i-1, i, temp);
-			// }
-			int fst_idx = (int) (Math.random() * (path_len - 2)) + 1;
-			int snd_idx = (int) (Math.random() * (path_len - 2)) + 1;
-			curr_dist = maybe_swap(path, curr_dist, Math.min(fst_idx, snd_idx), Math.max(fst_idx, snd_idx), temp);
+			System.out.println("Epoche " + epoch + "/" + (iterations-1));
+			temp *= alpha;
+			 for (int i = 2; i < path_len-2; i++) {
+				 curr_dist = maybe_swap(path, curr_dist, Math.min(i, i+1), Math.max(i, i+1), temp);
+			 }
+//			int fst_idx = (int) (Math.random() * (path_len - 3)) + 1;
+//			int snd_idx = (int) (Math.random() * (path_len - 2)) + 1;
+//			int snd_idx = fst_idx+1;
+			
 		}
 		return path;
 	}
@@ -135,7 +139,8 @@ public class Solver {
 	private double maybe_swap(List<Integer> path, double curr_dist, int fst, int snd, double temp) {
 		double new_dist = calcDistAfterSwap(path, curr_dist, fst, snd);
 		double random = Math.random();
-		double treshold = Math.exp(-1 / temp);
+		double rel_imporvement = (curr_dist - new_dist) / curr_dist;
+		double treshold = Math.exp(-rel_imporvement / temp);
 		if (new_dist < curr_dist || random < treshold) {
 			int x = path.get(fst);
 			path.set(fst, path.get(snd));
@@ -159,18 +164,19 @@ public class Solver {
 			dist_from_snd = cityDist(path.get(fst), path.get(snd + 1), snd + 1);
 			new_dist += dist_to_fst + dist_between + dist_from_snd;
 			return new_dist;
-		} else {
-			double dist_to_fst = cityDist(path.get(fst - 1), path.get(fst), fst);
-			double dist_from_fst = cityDist(path.get(fst), path.get(fst + 1), fst + 1);
-			double dist_to_snd = cityDist(path.get(snd - 1), path.get(snd), snd);
-			double dist_from_snd = cityDist(path.get(snd), path.get(snd + 1), snd + 1);
-			double new_dist = curr_dist - (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
-			dist_to_fst = cityDist(path.get(fst - 1), path.get(snd), fst);
-			dist_from_fst = cityDist(path.get(snd), path.get(fst + 1), fst + 1);
-			dist_to_snd = cityDist(path.get(snd - 1), path.get(fst), snd);
-			dist_from_snd = cityDist(path.get(fst), path.get(snd + 1), snd + 1);
-			new_dist += (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
-			return new_dist;
+		} else { // Not possible in current version
+//			double dist_to_fst = cityDist(path.get(fst - 1), path.get(fst), fst);
+//			double dist_from_fst = cityDist(path.get(fst), path.get(fst + 1), fst + 1);
+//			double dist_to_snd = cityDist(path.get(snd - 1), path.get(snd), snd);
+//			double dist_from_snd = cityDist(path.get(snd), path.get(snd + 1), snd + 1);
+//			double new_dist = curr_dist - (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
+//			dist_to_fst = cityDist(path.get(fst - 1), path.get(snd), fst);
+//			dist_from_fst = cityDist(path.get(snd), path.get(fst + 1), fst + 1);
+//			dist_to_snd = cityDist(path.get(snd - 1), path.get(fst), snd);
+//			dist_from_snd = cityDist(path.get(fst), path.get(snd + 1), snd + 1);
+//			new_dist += (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
+//			return new_dist;
+			return -1;
 		}
 	}
 
@@ -205,7 +211,7 @@ public class Solver {
 	public static void main(String[] args) {
 		long t0 = System.currentTimeMillis();
 		Solver s = new Solver();
-		List<Integer> p = s.findSimulatedAnnealingPath();
+		List<Integer> p = s.findSimulatedAnnealingPath(0.8);
 		long t1 = System.currentTimeMillis();
 		System.out.println("Distance: " + s.pathDist(p));
 		System.out.println("Time: " + (t1 - t0) / 1000);
