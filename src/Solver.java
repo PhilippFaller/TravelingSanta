@@ -10,6 +10,12 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 import edu.wlu.cs.levy.CG.KDTree;
 import edu.wlu.cs.levy.CG.KeyDuplicateException;
@@ -117,23 +123,59 @@ public class Solver {
 
 	public List<Integer> findSimulatedAnnealingPath(double alpha) {
 		List<Integer> path = findGreedyPath();
-//		List<Integer> path = findRandomPath();
+		// List<Integer> path = findRandomPath();
 		double curr_dist = pathDist(path);
 		int path_len = path.size();
-		int iterations = 10000; // Should be at least path_length. Not fast enough for that.
+		int iterations = path_len;
 		double temp = 1;
+		int num_threads = 16;
+		ExecutorService exe = Executors.newFixedThreadPool(num_threads);
+		ReentrantLock lock = new ReentrantLock();
 		for (int epoch = 0; epoch < iterations; epoch++) {
-			System.out.println("Epoche " + epoch + "/" + (iterations-1));
+			if (epoch % 1000 == 0)
+				System.out.println("Epoche " + epoch + "/" + (iterations - 1));
 			temp *= alpha;
-			 for (int i = 2; i < path_len-2; i++) {
-				 curr_dist = maybe_swap(path, curr_dist, Math.min(i, i+1), Math.max(i, i+1), temp);
-			 }
-//			int fst_idx = (int) (Math.random() * (path_len - 3)) + 1;
-//			int snd_idx = (int) (Math.random() * (path_len - 2)) + 1;
-//			int snd_idx = fst_idx+1;
-			
+			int swaps_per_worker = (path_len - 3) / (num_threads - 1);
+			List<Future<Double>> results = new ArrayList<>();
+			for (int worker = 0, start = 1; worker < num_threads; worker++, start += swaps_per_worker) {
+				int start_index = start;
+				double current_dist = curr_dist;
+				double current_temp = temp;
+				results.add(exe.submit(() -> swap_worker(path, current_dist, start_index,
+						Math.min(start_index + swaps_per_worker, path_len - 2), current_temp, lock)));
+			}
+			for (Future<Double> f : results) {
+				try {
+					curr_dist -= f.get();
+				} catch (InterruptedException | ExecutionException e) {
+					e.printStackTrace();
+				}
+			}
+
+		}
+		try {
+			exe.shutdown();
+			exe.awaitTermination(1, TimeUnit.DAYS);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
 		}
 		return path;
+	}
+
+	public double swap_worker(List<Integer> path, double old_dist, int start, int end, double temp,
+			ReentrantLock lock) {
+		double local_dist = old_dist;
+		for (int i = start + 1; i < end - 1; i++) {
+			local_dist = maybe_swap(path, local_dist, i, i + 1, temp);
+		}
+		try {
+			lock.lock();
+			local_dist = maybe_swap(path, local_dist, end - 1, end, temp);
+		} finally {
+			lock.unlock();
+		}
+		return old_dist - local_dist;
+
 	}
 
 	private double maybe_swap(List<Integer> path, double curr_dist, int fst, int snd, double temp) {
@@ -165,17 +207,18 @@ public class Solver {
 			new_dist += dist_to_fst + dist_between + dist_from_snd;
 			return new_dist;
 		} else { // Not possible in current version
-//			double dist_to_fst = cityDist(path.get(fst - 1), path.get(fst), fst);
-//			double dist_from_fst = cityDist(path.get(fst), path.get(fst + 1), fst + 1);
-//			double dist_to_snd = cityDist(path.get(snd - 1), path.get(snd), snd);
-//			double dist_from_snd = cityDist(path.get(snd), path.get(snd + 1), snd + 1);
-//			double new_dist = curr_dist - (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
-//			dist_to_fst = cityDist(path.get(fst - 1), path.get(snd), fst);
-//			dist_from_fst = cityDist(path.get(snd), path.get(fst + 1), fst + 1);
-//			dist_to_snd = cityDist(path.get(snd - 1), path.get(fst), snd);
-//			dist_from_snd = cityDist(path.get(fst), path.get(snd + 1), snd + 1);
-//			new_dist += (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
-//			return new_dist;
+			// double dist_to_fst = cityDist(path.get(fst - 1), path.get(fst), fst);
+			// double dist_from_fst = cityDist(path.get(fst), path.get(fst + 1), fst + 1);
+			// double dist_to_snd = cityDist(path.get(snd - 1), path.get(snd), snd);
+			// double dist_from_snd = cityDist(path.get(snd), path.get(snd + 1), snd + 1);
+			// double new_dist = curr_dist - (dist_to_fst + dist_from_fst + dist_to_snd +
+			// dist_from_snd);
+			// dist_to_fst = cityDist(path.get(fst - 1), path.get(snd), fst);
+			// dist_from_fst = cityDist(path.get(snd), path.get(fst + 1), fst + 1);
+			// dist_to_snd = cityDist(path.get(snd - 1), path.get(fst), snd);
+			// dist_from_snd = cityDist(path.get(fst), path.get(snd + 1), snd + 1);
+			// new_dist += (dist_to_fst + dist_from_fst + dist_to_snd + dist_from_snd);
+			// return new_dist;
 			return -1;
 		}
 	}
