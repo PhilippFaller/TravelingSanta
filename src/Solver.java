@@ -15,6 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantLock;
 
 import edu.wlu.cs.levy.CG.KDTree;
@@ -93,8 +94,55 @@ public class Solver {
 		path.add(0);
 		return path;
 	}
+	
+	public void gridSearchForGreedy(int step_size) {
+		double best_dist = Integer.MAX_VALUE;
+		int best_k = -1;
+		List<Integer> best_path = null;
+		int num_threads = 8;
+		int steps_per_thread = cities.size() / (num_threads-1);
+		ExecutorService ex = Executors.newFixedThreadPool(num_threads);
+		List<Future<Tupel<Double, Integer>>> results = new LinkedList<>();
+		for(int i = 0; i < num_threads; i++) {
+			int start_idx =i;
+			int stop_idx = i+steps_per_thread;
+			results.add(ex.submit(() -> gridSearchWorker(start_idx, stop_idx, step_size)));
+		}
+		ex.shutdown();
+		for(Future<Tupel<Double, Integer>> t : results) {
+			try {
+				Tupel<Double, Integer> tupel = t.get(1, TimeUnit.DAYS);
+				double dist = tupel.fst;
+				System.out.println(dist);
+				if(dist < best_dist) {
+					best_dist = dist;
+					best_k = tupel.snd;
+				}
+			} catch (InterruptedException | ExecutionException | TimeoutException e) {
+				e.printStackTrace();
+			}
+			
+		}
+		best_path = findGreedyPath(best_k);
+		savePath(best_path, "GridGreedy.csv");
+		System.out.println("Dist " + best_dist + " for k=" + best_k);
+	}
+	
+	public Tupel<Double, Integer> gridSearchWorker(int start, int stop, int step_size) {
+		double best_dist = Integer.MAX_VALUE;
+		int best_k = -1;
+		for(int k = start; k < stop; k+=step_size) {
+			List<Integer>p = findGreedyPath(k);
+			double dist = pathDist(p);
+			if (dist < best_dist) {
+				best_dist = dist;
+				best_k = k;
+			}
+		}
+		return new Tupel<Double, Integer>(best_dist, best_k);		
+	}
 
-	public List<Integer> findGreedyPath() {
+	public List<Integer> findGreedyPath(int k) {
 		KDTree<Integer> unvisited_cities = new KDTree<>(2);
 		for (int i = 1; i < cities.size(); i++) {
 			try {
@@ -103,32 +151,51 @@ public class Solver {
 				e.printStackTrace();
 			}
 		}
-		List<Integer> path = new ArrayList<>();
-		path.add(0);
-		double[] curr_city = { cities.getX(0), cities.getY(0) };
+		List<Integer> pathFromStart = new LinkedList<>();
+		List<Integer> pathFromEnd = new ArrayList<>();
+		pathFromStart.add(0);
+		pathFromEnd.add(0);
+		double[] curr_city_start = { cities.getX(0), cities.getY(0) };
+		double[] curr_city_end = curr_city_start;
+//		int k = unvisited_cities.size()/2;
+		int j = 0;
 		while (unvisited_cities.size() != 0) {
-			try {
-				int next_city = unvisited_cities.nearest(curr_city);
-				path.add(next_city);
-				curr_city[0] = cities.getX(next_city);
-				curr_city[1] = cities.getY(next_city);
-				unvisited_cities.delete(curr_city);
-			} catch (KeySizeException | KeyMissingException e) {
-				e.printStackTrace();
+			
+			if(unvisited_cities.size() == 0) break;
+			if(j<k) {
+				curr_city_start = addNearestCity(pathFromStart, curr_city_start, unvisited_cities);
 			}
+			else 
+				curr_city_end = addNearestCity(pathFromEnd, curr_city_end, unvisited_cities);
+			j++;
 		}
-		path.add(0);
-		return path;
+		for(int i = pathFromEnd.size()-1; i>=0; i--) {
+			pathFromStart.add(pathFromEnd.get(i));
+		}
+		return pathFromStart;
+	}
+	
+	public double[] addNearestCity(List<Integer> path, double[] curr_city, KDTree<Integer> unvisited_cities) {
+		try {
+			int next_city = unvisited_cities.nearest(curr_city);
+			path.add(next_city);
+			curr_city[0] = cities.getX(next_city);
+			curr_city[1] = cities.getY(next_city);
+			unvisited_cities.delete(curr_city);
+		} catch (KeySizeException | KeyMissingException e) {
+			e.printStackTrace();
+		}
+		return curr_city;
 	}
 
 	public List<Integer> findSimulatedAnnealingPath(double alpha) {
-		List<Integer> path = findGreedyPath();
+		List<Integer> path = findGreedyPath(0);
 		// List<Integer> path = findRandomPath();
 		double curr_dist = pathDist(path);
 		int path_len = path.size();
 		int iterations = path_len;
 		double temp = 1;
-		int num_threads = 16;
+		int num_threads = 8;
 		ExecutorService exe = Executors.newFixedThreadPool(num_threads);
 		ReentrantLock lock = new ReentrantLock();
 		for (int epoch = 0; epoch < iterations; epoch++) {
@@ -254,11 +321,11 @@ public class Solver {
 	public static void main(String[] args) {
 		long t0 = System.currentTimeMillis();
 		Solver s = new Solver();
-		List<Integer> p = s.findSimulatedAnnealingPath(0.8);
+		s.gridSearchForGreedy(1000);
 		long t1 = System.currentTimeMillis();
-		System.out.println("Distance: " + s.pathDist(p));
+//		System.out.println("Distance: " + s.pathDist(p));
 		System.out.println("Time: " + (t1 - t0) / 1000);
-		s.savePath(p, "sim_anneal.csv");
+//		s.savePath(p, "greedy2.csv");
 	}
 
 }
