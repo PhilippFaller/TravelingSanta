@@ -104,16 +104,16 @@ public class Solver {
 		ExecutorService ex = Executors.newFixedThreadPool(num_threads);
 		List<Future<Tupel<Double, Integer>>> results = new LinkedList<>();
 		for(int i = 0; i < num_threads; i++) {
-			int start_idx =i;
-			int stop_idx = i+steps_per_thread;
-			results.add(ex.submit(() -> gridSearchWorker(start_idx, stop_idx, step_size)));
+			int start_idx =i*steps_per_thread;
+			int stop_idx = start_idx+steps_per_thread;
+			int id = i;
+			results.add(ex.submit(() -> gridSearchWorker(start_idx, stop_idx, step_size, id)));
 		}
 		ex.shutdown();
 		for(Future<Tupel<Double, Integer>> t : results) {
 			try {
 				Tupel<Double, Integer> tupel = t.get(1, TimeUnit.DAYS);
 				double dist = tupel.fst;
-				System.out.println(dist);
 				if(dist < best_dist) {
 					best_dist = dist;
 					best_k = tupel.snd;
@@ -128,10 +128,14 @@ public class Solver {
 		System.out.println("Dist " + best_dist + " for k=" + best_k);
 	}
 	
-	public Tupel<Double, Integer> gridSearchWorker(int start, int stop, int step_size) {
+	public Tupel<Double, Integer> gridSearchWorker(int start, int stop, int step_size, int id) {
 		double best_dist = Integer.MAX_VALUE;
 		int best_k = -1;
+		int log_every = 100;
 		for(int k = start; k < stop; k+=step_size) {
+			if(id == 0 && ((k-start)/step_size) % log_every == 0) {
+				System.out.println("Iteration " + (k-start)/step_size + "/" + (stop-start)/step_size);
+			}
 			List<Integer>p = findGreedyPath(k);
 			double dist = pathDist(p);
 			if (dist < best_dist) {
@@ -321,7 +325,7 @@ public class Solver {
 	public static void main(String[] args) {
 		long t0 = System.currentTimeMillis();
 		Solver s = new Solver();
-		s.gridSearchForGreedy(1000);
+		s.gridSearchForGreedy(10000);
 		long t1 = System.currentTimeMillis();
 //		System.out.println("Distance: " + s.pathDist(p));
 		System.out.println("Time: " + (t1 - t0) / 1000);
